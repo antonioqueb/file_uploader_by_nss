@@ -1,10 +1,8 @@
-version: '3.8'
-
 services:
   file-uploader:
     build: .
     container_name: file_uploader_service
     ports:
-      - "3026:3026"
+      - "3027:3027"
     volumes:
-      - ./uploads:/usr/src/app/uploads
+      - ./uploads_by_nss:/usr/src/app/uploads
