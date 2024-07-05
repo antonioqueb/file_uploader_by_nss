@@ -14,25 +14,25 @@ if not os.path.exists(UPLOAD_FOLDER):
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
-    if 'files' not in request.files or 'rfc' not in request.form:
-        return jsonify(message='Por favor proporciona archivos y un RFC'), 400
+    if 'files' not in request.files or 'nss' not in request.form:
+        return jsonify(message='Por favor proporciona archivos y un NSS'), 400
 
-    rfc = request.form['rfc']
+    nss = request.form['nss']
     files = request.files.getlist('files')
 
     if not files or any(file.filename == '' for file in files):
         return jsonify(message='Por favor sube al menos un archivo'), 400
 
-    # Crear directorio para el RFC si no existe
-    rfc_dir = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(rfc))
-    if not os.path.exists(rfc_dir):
-        os.makedirs(rfc_dir)
+    # Crear directorio para el NSS si no existe
+    nss_dir = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(nss))
+    if not os.path.exists(nss_dir):
+        os.makedirs(nss_dir)
 
     uploaded_files = []
 
     for file in files:
         filename = secure_filename(file.filename)
-        file_path = os.path.join(rfc_dir, filename)
+        file_path = os.path.join(nss_dir, filename)
 
         # Verificar si el archivo ya existe y agregar sufijo numérico si es necesario
         if os.path.exists(file_path):
@@ -40,7 +40,7 @@ def upload_file():
             counter = 1
             while os.path.exists(file_path):
                 new_filename = f"{base}_v{counter}{extension}"
-                file_path = os.path.join(rfc_dir, new_filename)
+                file_path = os.path.join(nss_dir, new_filename)
                 counter += 1
             filename = new_filename
 
@@ -49,17 +49,17 @@ def upload_file():
 
     return jsonify(message='Archivos subidos exitosamente', files=uploaded_files), 200
 
-@app.route('/files/<rfc>', methods=['GET'])
-def list_files(rfc):
-    # Ruta de la carpeta del RFC
-    rfc_dir = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(rfc))
+@app.route('/files/<nss>', methods=['GET'])
+def list_files(nss):
+    # Ruta de la carpeta del NSS
+    nss_dir = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(nss))
 
-    # Verificar si la carpeta del RFC existe
-    if not os.path.exists(rfc_dir):
-        return jsonify(message='RFC no encontrado'), 404
+    # Verificar si la carpeta del NSS existe
+    if not os.path.exists(nss_dir):
+        return jsonify(message='NSS no encontrado'), 404
 
-    # Obtener la lista de archivos en la carpeta del RFC
-    files = os.listdir(rfc_dir)
+    # Obtener la lista de archivos en la carpeta del NSS
+    files = os.listdir(nss_dir)
 
     return jsonify(files=files), 200
 
