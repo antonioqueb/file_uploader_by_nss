@@ -1,8 +1,10 @@
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 import os
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
+CORS(app, resources={r"/*": {"origins": "https://historiallaboral.com"}})
 
 # Directorio donde se guardarán los archivos subidos
 UPLOAD_FOLDER = 'uploads'
