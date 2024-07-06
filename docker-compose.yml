@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   file-uploader:
     build: .
@@ -5,5 +7,13 @@ services:
     ports:
       - "3027:3027"
     volumes:
-      - ./uploads_by_nss:/usr/src/app/uploads
+      - ./uploads:/usr/src/app/uploads
       - ./token_store.db:/usr/src/app/token_store.db
+
+volumes:
+  token_store:
+    driver: local
+    driver_opts:
+      type: none
+      device: ./token_store.db
+      o: bind
