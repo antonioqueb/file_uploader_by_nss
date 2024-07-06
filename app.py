@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 import os
 from werkzeug.utils import secure_filename
@@ -113,6 +113,32 @@ def list_files(nss):
     files = os.listdir(nss_dir)
 
     return jsonify(files=files), 200
+
+@app.route('/get-signature/<nss>', methods=['GET'])
+def get_signature(nss):
+    # Ruta de la carpeta de autorización del NSS
+    authorization_dir = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(nss), 'autorización')
+
+    # Verificar si la carpeta de autorización existe
+    if not os.path.exists(authorization_dir):
+        return jsonify(message='NSS o carpeta de autorización no encontrada'), 404
+
+    # Listar los archivos en la carpeta de autorización
+    files = os.listdir(authorization_dir)
+
+    # Si no hay archivos, retornar un mensaje de error
+    if not files:
+        return jsonify(message='No se encontraron archivos de contrato firmados para este NSS'), 404
+
+    # Asumir que el primer archivo es el contrato firmado
+    contract_file = files[0]
+    file_path = os.path.join(authorization_dir, contract_file)
+
+    # Verificar si el archivo existe y devolverlo
+    if os.path.exists(file_path):
+        return send_file(file_path, mimetype='application/pdf')
+    else:
+        return jsonify(message='Archivo no encontrado'), 404
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=3027)
