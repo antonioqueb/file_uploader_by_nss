@@ -6,3 +6,4 @@ services:
       - "3027:3027"
     volumes:
       - ./uploads_by_nss:/usr/src/app/uploads
+      - ./token_store.db:/usr/src/app/token_store.db

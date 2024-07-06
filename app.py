@@ -1,7 +1,10 @@
-from flask import Flask, request, jsonify, send_file
+from flask import Flask, request, jsonify, send_file, g
 from flask_cors import CORS
 import os
 from werkzeug.utils import secure_filename
+import sqlite3
+import uuid
+import time
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "https://historiallaboral.com"}})
@@ -13,6 +16,38 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 # Asegurarse de que el directorio de carga exista
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
+
+# Configuración de la base de datos SQLite
+DATABASE = 'token_store.db'
+
+def get_db():
+    db = getattr(g, '_database', None)
+    if db is None:
+        db = g._database = sqlite3.connect(DATABASE)
+    return db
+
+@app.teardown_appcontext
+def close_connection(exception):
+    db = getattr(g, '_database', None)
+    if db is not None:
+        db.close()
+
+def init_db():
+    with app.app_context():
+        db = get_db()
+        cursor = db.cursor()
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS tokens (
+                token TEXT PRIMARY KEY,
+                nss TEXT NOT NULL,
+                expires INTEGER NOT NULL
+            )
+        ''')
+        db.commit()
+
+@app.before_first_request
+def initialize():
+    init_db()
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
@@ -114,31 +149,43 @@ def list_files(nss):
 
     return jsonify(files=files), 200
 
-@app.route('/get-signature/<nss>', methods=['GET'])
-def get_signature(nss):
-    # Ruta de la carpeta de autorización del NSS
-    authorization_dir = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(nss), 'autorización')
+@app.route('/generate-token/<nss>', methods=['GET'])
+def generate_token(nss):
+    token = str(uuid.uuid4())
+    expires = int(time.time()) + 300  # Token expira en 5 minutos
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute('INSERT INTO tokens (token, nss, expires) VALUES (?, ?, ?)', (token, secure_filename(nss), expires))
+    db.commit()
+    return jsonify(token=token), 200
 
-    # Verificar si la carpeta de autorización existe
-    if not os.path.exists(authorization_dir):
-        return jsonify(message='NSS o carpeta de autorización no encontrada'), 404
+@app.route('/get-signature/<token>', methods=['GET'])
+def get_signature(token):
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute('SELECT nss, expires FROM tokens WHERE token = ?', (token,))
+    row = cursor.fetchone()
+    if row:
+        nss, expires = row
+        if expires > int(time.time()):
+            authorization_dir = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(nss), 'autorización')
+            if not os.path.exists(authorization_dir):
+                return jsonify(message='NSS o carpeta de autorización no encontrada'), 404
 
-    # Listar los archivos en la carpeta de autorización
-    files = os.listdir(authorization_dir)
+            files = os.listdir(authorization_dir)
+            if not files:
+                return jsonify(message='No se encontraron archivos de contrato firmados para este NSS'), 404
 
-    # Si no hay archivos, retornar un mensaje de error
-    if not files:
-        return jsonify(message='No se encontraron archivos de contrato firmados para este NSS'), 404
-
-    # Asumir que el primer archivo es el contrato firmado
-    contract_file = files[0]
-    file_path = os.path.join(authorization_dir, contract_file)
-
-    # Verificar si el archivo existe y devolverlo
-    if os.path.exists(file_path):
-        return send_file(file_path, mimetype='application/pdf')
+            contract_file = files[0]
+            file_path = os.path.join(authorization_dir, contract_file)
+            if os.path.exists(file_path):
+                return send_file(file_path, mimetype='application/pdf')
+            else:
+                return jsonify(message='Archivo no encontrado'), 404
+        else:
+            return jsonify(message='Token expirado'), 400
     else:
-        return jsonify(message='Archivo no encontrado'), 404
+        return jsonify(message='Token no válido'), 400
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=3027)
