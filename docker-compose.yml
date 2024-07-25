@@ -5,7 +5,7 @@ services:
     build: .
     container_name: file_uploader_service
     ports:
-      - "3027:3027"
+      - "3030:3027"
     volumes:
       - ./uploads:/usr/src/app/uploads
       - ./token_store.db:/usr/src/app/token_store.db
